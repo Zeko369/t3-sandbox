@@ -2,6 +2,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 
 import { type Context } from "./context";
+import { Prisma } from "@prisma/client";
 
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
@@ -12,10 +13,29 @@ const t = initTRPC.context<Context>().create({
 
 export const router = t.router;
 
+const prismaNotFoundMiddleware = t.middleware(({ next }) => {
+  try {
+    return next();
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === "P2025") {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Not found",
+        });
+      }
+    }
+
+    throw err;
+  }
+});
+
+const baseProcedure = t.procedure.use(prismaNotFoundMiddleware);
+
 /**
  * Unprotected procedure
  **/
-export const publicProcedure = t.procedure;
+export const publicProcedure = baseProcedure;
 
 /**
  * Reusable middleware to ensure
@@ -36,4 +56,4 @@ const isAuthed = t.middleware(({ ctx, next }) => {
 /**
  * Protected procedure
  **/
-export const protectedProcedure = t.procedure.use(isAuthed);
+export const protectedProcedure = baseProcedure.use(isAuthed);
