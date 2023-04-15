@@ -13,24 +13,7 @@ const t = initTRPC.context<Context>().create({
 
 export const router = t.router;
 
-const prismaNotFoundMiddleware = t.middleware(({ next }) => {
-  try {
-    return next();
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError) {
-      if (err.code === "P2025") {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Not found",
-        });
-      }
-    }
-
-    throw err;
-  }
-});
-
-const baseProcedure = t.procedure.use(prismaNotFoundMiddleware);
+const baseProcedure = t.procedure;
 
 /**
  * Unprotected procedure
